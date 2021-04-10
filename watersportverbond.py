@@ -22,17 +22,40 @@ options.add_argument('--no-sandbox')
 options.add_argument('--disable-dev-shm-usage')
 options.add_argument('--incognito')
 # setting up selenium driver
-driver = webdriver.Chrome(options=options, executable_path=os.path.join(path,'chromedriver'))
+driver1 = webdriver.Chrome(options=options, executable_path=os.path.join(path,'chromedriver'))
+driver2 = webdriver.Chrome(options=options, executable_path=os.path.join(path,'chromedriver'))
 
 # opening the website	
-driver.get(url_wedstrijdzeilen)
+driver1.get(url_wedstrijdzeilen)
 
 def by_class(class_name, column_name):
-    content = driver.find_elements_by_class_name(class_name)
+    content = driver1.find_elements_by_class_name(class_name)
     text = [x.text for x in content]
     df = pd.DataFrame(text, columns=[column_name])
     
     return df
+
+def webpage(name):
+    """ 
+    scrapping class info and type of race
+    """
+    name = name.lower()
+    name = re.sub(r'[^a-z0-9\sûöc]',' ',name)
+    name = re.sub(r'\s+','-',name)
+    name = re.sub(r'û|ü','u',name)
+    name = re.sub(r'ö','o',name)
+    name = re.sub(r'-$','',name)
+    print (name)
+    link = url_wedstrijdzeilen+'/'+name
+    driver2.get(link)
+    content = driver2.find_elements_by_class_name('card__body' )
+    name = ''
+    for x in content:
+        name = x.text
+    name = re.sub(r'Aan je agenda.*|[\n]Aan je agenda.*','', name)
+    name = re.sub(r'\n',', ', name)
+    
+    return name
 
 df_complete=[]
 x=1
@@ -55,16 +78,21 @@ while x==1:
 
     try:
         # getting the next button by class name
-        button=driver.find_element_by_xpath("""/html/body[@class='template-calendaritemoverviewpage']/div[@id='scrollto-content']/div[@id='initiative-search']/div[@class='g-size-12 g-size-lg-8 faceted-search__results']/div[@class='pagination__container']/ul[@class='pagination']/li[@class='pagination__item pagination__item--next']/a""")
+        button=driver1.find_element_by_xpath("""/html/body[@class='template-calendaritemoverviewpage']/div[@id='scrollto-content']/div[@id='initiative-search']/div[@class='g-size-12 g-size-lg-8 faceted-search__results']/div[@class='pagination__container']/ul[@class='pagination']/li[@class='pagination__item pagination__item--next']/a""")
         # clicking the button
-        driver.execute_script("arguments[0].click();", button)
+        driver1.execute_script("arguments[0].click();", button)
     except:
         x=0
+    time.sleep(1)
 
-    time.sleep(5)
+df_complete = df_complete.reset_index(drop=True)
+print(df_complete)
+# adding race and classes
+df_complete['Race'] = df_complete['Event'].apply(lambda x: webpage(x))
 
 df_complete.to_excel('watersportverbond.xlsx',sheet_name='zeilen')
 
 # closing connection
-driver.close()
+driver1.close()
+driver2.close()
 
